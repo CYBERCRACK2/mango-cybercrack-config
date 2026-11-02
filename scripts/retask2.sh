@@ -24,7 +24,7 @@ run_configuration() {
 
   echo "1. Deteniendo PipeWire y WirePlumber desde tu sesión de usuario..."
   systemctl --user stop wireplumber.service
-  sleep 3
+  sleep 1
 
   echo "2. Aplicando los 14 pines de forma secuencial (Se solicitará sudo)..."
   # La primera línea activará el prompt de sudo, las siguientes se ejecutarán directo gracias a la caché de credenciales
