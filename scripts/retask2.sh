@@ -81,6 +81,36 @@ done
 
 # --- Salida Final ---
 
+# Al lanzarlo desde el menú (.desktop) cerramos la ventana de alacritty al terminar.
+# Si falla, esperamos a que el usuario lea el error antes de cerrarla.
+UI_MODE="${FIX_AUDIO_UI:-0}"
+
+# Detección de respaldo: si el padre directo es alacritty, venimos del menú,
+# aunque la entrada .desktop en caché no traiga FIX_AUDIO_UI.
+if [ "$UI_MODE" != "1" ]; then
+  parent_comm=$(ps -o comm= -p "$PPID" 2>/dev/null | tr -d ' ')
+  if [ "$parent_comm" = "alacritty" ]; then
+    UI_MODE=1
+  fi
+fi
+
+# Busca el alacritty que lanzó este script (subiendo por los procesos padre) y lo
+# cierra. Así funciona aunque el .desktop se haya lanzado con --hold.
+close_terminal_window() {
+  pid="$PPID"
+  depth=0
+  while [ -n "$pid" ] && [ "$pid" -gt 1 ] && [ "$depth" -lt 10 ]; do
+    comm=$(ps -o comm= -p "$pid" 2>/dev/null | tr -d ' ')
+    if [ "$comm" = "alacritty" ]; then
+      kill -TERM "$pid" 2>/dev/null
+      return 0
+    fi
+    pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+    depth=$((depth + 1))
+  done
+  return 1
+}
+
 if [ $SUCCESS -eq 1 ]; then
   echo ""
   echo "======================================================"
@@ -88,13 +118,26 @@ if [ $SUCCESS -eq 1 ]; then
   echo "El hardware se ha reconfigurado correctamente."
   echo "Comprueba pwcontrol para verificar los cambios."
   echo "======================================================"
+
+  if [ "$UI_MODE" = "1" ]; then
+    sleep 1
+    close_terminal_window
+  fi
 else
   echo ""
   echo "======================================================"
   echo "❌ FALLO CRÍTICO: El script no pudo completarse después de $MAX_ATTEMPTS intentos."
   echo "Asegúrate de que el hardware está conectado y tienes permisos de sudo."
   echo "======================================================"
+
+  if [ "$UI_MODE" = "1" ]; then
+    printf "\nPresiona Enter para cerrar esta ventana..."
+    read -r _
+  fi
 fi
 
 # Salir del script con el código de éxito o fallo final
-exit $SUCCESS
+if [ "$SUCCESS" -eq 1 ]; then
+  exit 0
+fi
+exit 1
