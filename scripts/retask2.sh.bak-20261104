@@ -97,5 +97,5 @@ else
 fi
 
 # Salir del script con el código de éxito o fallo final
-exit $SUCCESS
 kill -9 $$
+exit $SUCCESS
